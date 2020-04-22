@@ -7,12 +7,13 @@ import torch.nn as nn
 from dataset import CocoDataset
 from torch.utils.data import DataLoader
 import pickle
+from utils import generate_adjacency_matrix
 import numpy as np
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 num_classes = 80
-num_epochs = 3
+num_epochs = 10
 results_folder = 'Results'
 
 train_path = '/home/user/Data/coco2014/train2014'
@@ -23,10 +24,10 @@ adj = pickle.load(open('data/coco_adj.pkl', 'rb'))
 train_pickle_file = 'train.pickle'
 val_pickle_file = 'val.pickle'
 
-adj = np.float32(adj['adj'])  # numpy ndarray
+adj = np.float32(generate_adjacency_matrix(adj))
 adj_tensor = torch.from_numpy(adj)
 
-model = GCN(adj_tensor, num_classes, 1024, 1)
+model = GCN(adj_tensor, num_classes, 80, num_classes)
 
 if not os.path.exists(results_folder):
     os.makedirs(results_folder)
@@ -44,11 +45,16 @@ criterion = nn.BCEWithLogitsLoss()
 train_detections = pickle.load(open(train_pickle_file, 'rb'))
 val_detections = pickle.load(open(val_pickle_file, 'rb'))
 
-print('Training...')
-print('-' * 100)
-
 total_train_images = len(train_loader)
 total_val_images = len(val_loader)
+
+print('\n')
+print(f'Total train images: {total_train_images}')
+print(f'Total validation images: {total_val_images}')
+print('\n')
+
+print('Training...')
+print('-' * 100)
 
 train_acc_list = []
 val_acc_list = []
@@ -59,68 +65,97 @@ for epoch in range(num_epochs):
     model.train()
 
     train_loss = 0.0
-    train_correct = 0.0
+    # train_correct = 0.0
+
+    total_instances = 0.0
+    correct_instances = 0.0
 
     for img_path, label in train_loader:
         img_path = img_path[0]
         img_name = img_path.rsplit('/', 1)[1]
         class_ids = train_detections[img_name]
-        input_vector = torch.zeros(num_classes, num_classes)
+        input_vector = torch.zeros((1, num_classes))
         for class_id in class_ids:
-            input_vector[class_id] = 1.
+            input_vector[0, class_id] = 1
 
         optimizer.zero_grad()
         output = model(input_vector)
-        loss = criterion(output.T, label)
+        loss = criterion(output, label)
         loss.backward()
         optimizer.step()
 
         train_loss += loss.item()
-        predictions = torch.sigmoid(output.T)
-        predictions[predictions >= 0.5] = 1.
-        predictions[predictions < 0.5] = 0.
+        predictions = torch.sigmoid(output)
+        predictions[predictions >= 0.5] = 1
+        predictions[predictions < 0.5] = 0
 
-        if (predictions == label).sum().item() == len(label):
-            train_correct += 1
+        # if (predictions == label).sum().item() == len(label):
+        #    train_correct += 1
+
+        # if it's able to detect one instance, then gets a value of 1
+        label = label.T
+        predictions = predictions.T
+        for idx in range(0, len(label)):
+            if label[idx].item() == 1:
+                if predictions[idx].item() == 1:
+                    correct_instances += 1
+
+                total_instances += 1
 
     train_loss = train_loss / total_train_images
     train_loss_list.append(train_loss)
-    train_acc = (train_correct / total_train_images) * 100.0
+    train_acc = (correct_instances / total_instances) * 100.0
     train_acc_list.append(train_acc)
 
     print(f'Epoch: {epoch + 1} / {num_epochs}')
     print(f'Train Loss: {round(train_loss, 2)} Acc: {round(train_acc, 2)}')
+    print(f'Train total_instances: {int(total_instances)} correct_instalces: {int(correct_instances)}')
 
     # evaulate on val dataset
     val_loss = 0.0
-    val_correct = 0.0
+    # val_correct = 0.0
+    correct_instances = 0.0
+    total_instances = 0.0
     model.eval()
     with torch.no_grad():
         for img_path, label in val_loader:
             img_path = img_path[0]
             img_name = img_path.rsplit('/', 1)[1]
             class_ids = val_detections[img_name]
-            input_vector = torch.zeros(num_classes, num_classes)
+            input_vector = torch.zeros((1, num_classes))
             for class_id in class_ids:
-                input_vector[class_id] = 1.
+                input_vector[0, class_id] = 1
 
             output = model(input_vector)
-            loss = criterion(output.T, label)
-            predictions = torch.sigmoid(output.T)
-            predictions[predictions >= 0.5] = 1.
-            predictions[predictions < 0.5] = 0.
+            loss = criterion(output, label)
+            val_loss += loss.item()
 
-            # predict correct if 3 of the labels are correct
-            if (predictions == label).sum().item() == len(label):
-                val_correct += 1
+            predictions = torch.sigmoid(output)
+            predictions[predictions >= 0.5] = 1
+            predictions[predictions < 0.5] = 0
+
+            # if (predictions == label).sum().item() == torch.sum(label).item():
+            #   val_correct += 1
+
+            # if it's able to detect one instance, then gets a value of 1
+            label = label.T
+            predictions = predictions.T
+            for idx in range(0, len(label)):
+                if label[idx].item() == 1:
+                    if predictions[idx].item() == 1:
+                        correct_instances += 1
+
+                    total_instances += 1
 
     val_loss = val_loss / total_val_images
     val_loss_list.append(val_loss)
-    val_acc = (val_correct / total_val_images) * 100.0
+    val_acc = (correct_instances / total_instances) * 100.0
     val_acc_list.append(val_acc)
 
+    print('\n')
+    print(f'Val total_instances: {int(total_instances)} correct_instalces: {int(correct_instances)}')
     print(f'Val Loss: {round(val_loss, 2)}, Acc: {round(val_acc, 2)}')
-    print('-' * 50)
+    print('-' * 100)
 
 torch.save(model.state_dict(), results_folder + '/' + 'model.pth')
 

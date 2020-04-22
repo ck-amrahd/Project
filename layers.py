@@ -22,5 +22,5 @@ class GraphConvolution(Module):
 
     def forward(self, inp, adj):
         x = torch.mm(inp, self.weight)
-        output = torch.mm(adj, x) + self.bias
+        output = torch.mm(x, adj) + self.bias
         return output

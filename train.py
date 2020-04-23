@@ -20,11 +20,16 @@ train_path = '/home/user/Data/coco2014/train2014'
 train_ann_file = '/home/user/Data/coco2014/annotations/instances_train2014.json'
 val_path = '/home/user/Data/coco2014/val2014'
 val_ann_file = '/home/user/Data/coco2014/annotations/instances_val2014.json'
-adj = pickle.load(open('data/coco_adj.pkl', 'rb'))
+
+# adj = pickle.load(open('data/coco_adj.pkl', 'rb'))
+# adj = np.float32(generate_adjacency_matrix(adj))
+
+adj = pickle.load(open('adj.pickle', 'rb'))
+adj = np.float32(adj / np.max(adj) + np.identity(num_classes))
+
 train_pickle_file = 'train.pickle'
 val_pickle_file = 'val.pickle'
 
-adj = np.float32(generate_adjacency_matrix(adj))
 adj_tensor = torch.from_numpy(adj)
 
 model = GCN(adj_tensor, num_classes, 80, num_classes)
@@ -152,7 +157,6 @@ for epoch in range(num_epochs):
     val_acc = (correct_instances / total_instances) * 100.0
     val_acc_list.append(val_acc)
 
-    print('\n')
     print(f'Val total_instances: {int(total_instances)} correct_instalces: {int(correct_instances)}')
     print(f'Val Loss: {round(val_loss, 2)}, Acc: {round(val_acc, 2)}')
     print('-' * 100)

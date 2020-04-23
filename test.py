@@ -1,10 +1,7 @@
-import pickle
+from sklearn.metrics import f1_score
 import numpy as np
 
-num_classes = 80
+y_true = np.array([1, 0, 1, 0, 1])
+y_pred = np.array([0, 0, 1, 0, 0])
 
-adj = pickle.load(open('adj.pickle', 'rb'))
-adj = adj / np.max(adj)
-
-adj = adj + np.identity(num_classes)
-print(adj)
+print(f1_score(y_true, y_pred))

@@ -7,7 +7,6 @@ import torch.nn as nn
 from dataset import CocoDataset
 from torch.utils.data import DataLoader
 import pickle
-from utils import generate_adjacency_matrix
 import numpy as np
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -20,9 +19,6 @@ train_path = '/home/user/Data/coco2014/train2014'
 train_ann_file = '/home/user/Data/coco2014/annotations/instances_train2014.json'
 val_path = '/home/user/Data/coco2014/val2014'
 val_ann_file = '/home/user/Data/coco2014/annotations/instances_val2014.json'
-
-# adj = pickle.load(open('data/coco_adj.pkl', 'rb'))
-# adj = np.float32(generate_adjacency_matrix(adj))
 
 adj = pickle.load(open('adj.pickle', 'rb'))
 adj = np.float32(adj / np.max(adj) + np.identity(num_classes))

@@ -3,8 +3,6 @@
 
 import torch
 from gcn import GCN
-import torch.optim as optim
-import torch.nn as nn
 from dataset import CocoDataset
 from torch.utils.data import DataLoader
 import pickle
@@ -33,9 +31,6 @@ val_dataset = CocoDataset(val_path, val_ann_file, num_classes)
 train_loader = DataLoader(train_dataset, batch_size=1, shuffle=True, num_workers=1)
 val_loader = DataLoader(val_dataset, batch_size=1, shuffle=False, num_workers=1)
 
-optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
-criterion = nn.BCEWithLogitsLoss()
-
 train_detections = pickle.load(open(train_pickle_file, 'rb'))
 val_detections = pickle.load(open(val_pickle_file, 'rb'))
 
@@ -43,8 +38,11 @@ total_train_images = len(train_loader)
 total_val_images = len(val_loader)
 
 model.eval()
-with torch.no_grad():
 
+print('Running...')
+print('\n')
+
+with torch.no_grad():
     correct_yolo = 0
     correct_gcn = 0
     total_instances = 0
@@ -53,6 +51,12 @@ with torch.no_grad():
         img_path = img_path[0]
         img_name = img_path.rsplit('/', 1)[1]
         class_ids = train_detections[img_name]
+
+        for class_id in class_ids:
+            if class_id is not None:
+                if label.T[class_id] == 1:
+                    correct_yolo += 1
+
         input_vector = torch.zeros((1, num_classes))
         for class_id in class_ids:
             input_vector[0, class_id] = 1
@@ -61,6 +65,12 @@ with torch.no_grad():
         predictions = torch.sigmoid(output)
         predictions[predictions >= 0.5] = 1
         predictions[predictions < 0.5] = 0
+
+        # concatenate output from yolo and gcn
+        for class_id in class_ids:
+            if class_id is not None:
+                predictions.T[class_id] = 1
+
         label = label.T
         predictions = predictions.T
         for idx in range(0, len(label)):
@@ -70,10 +80,17 @@ with torch.no_grad():
 
                 total_instances += 1
 
-    train_acc_gcn = (correct_gcn / total_instances) * 100.0
+    gcn_acc = (correct_gcn / total_instances) * 100.0
+    yolo_acc = (correct_yolo / total_instances) * 100.0
 
-    print(f'Train Acc: {round(train_acc_gcn, 2)}')
-    print(f'Train total_instances: {int(total_instances)} correct_instalces: {int(train_acc_gcn)}')
+    print('Training set')
+    print(f'total_instances: {int(total_instances)} ')
+    print(f'yolo: {int(correct_yolo)}')
+    print(f'gcn: {int(correct_gcn)}')
+
+    print(f'yolo acc: {round(yolo_acc, 2)}')
+    print(f'gcn acc: {round(gcn_acc, 2)}')
+    print(f'improvement: {correct_gcn - correct_yolo}')
 
     correct_yolo = 0
     correct_gcn = 0
@@ -82,16 +99,25 @@ with torch.no_grad():
         img_path = img_path[0]
         img_name = img_path.rsplit('/', 1)[1]
         class_ids = val_detections[img_name]
+
+        for class_id in class_ids:
+            if class_id is not None:
+                if label.T[class_id] == 1:
+                    correct_yolo += 1
+
         input_vector = torch.zeros((1, num_classes))
         for class_id in class_ids:
             input_vector[0, class_id] = 1
 
         output = model(input_vector)
-        loss = criterion(output, label)
-
         predictions = torch.sigmoid(output)
         predictions[predictions >= 0.5] = 1
         predictions[predictions < 0.5] = 0
+
+        # concatenate output from yolo and gcn
+        for class_id in class_ids:
+            if class_id is not None:
+                predictions.T[class_id] = 1
 
         label = label.T
         predictions = predictions.T
@@ -102,7 +128,15 @@ with torch.no_grad():
 
                 total_instances += 1
 
-    val_acc_gcn = (correct_gcn / total_instances) * 100.0
+    gcn_acc = (correct_gcn / total_instances) * 100.0
+    yolo_acc = (correct_gcn / total_instances) * 100.0
 
-    print(f'Val Acc: {round(val_acc_gcn, 2)}')
-    print(f'Train total_instances: {int(total_instances)} correct_instalces: {int(correct_gcn)}')
+    print('\n')
+    print('Validation set')
+    print(f'total_instances: {int(total_instances)} ')
+    print(f'yolo: {int(correct_yolo)}')
+    print(f'gcn: {int(correct_gcn)}')
+
+    print(f'yolo acc: {round(yolo_acc, 2)}')
+    print(f'gcn acc: {round(gcn_acc, 2)}')
+    print(f'improvement: {correct_gcn - correct_yolo}')

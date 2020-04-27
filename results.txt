@@ -1,0 +1,24 @@
+1. First experiment:
+
+Epoch: 50 / 50
+Train Loss: 0.07 Acc: 50.55
+Train total_instances: 241035 correct_instalces: 121849
+Val total_instances: 116592 correct_instalces: 60514
+Val Loss: 0.07, Acc: 51.9
+
+graph -> exp1.svg
+
+two layer gcn
+
+2. Second Experiment:
+
+3 layer gcn:
+
+Epoch: 50 / 50
+Train Loss: 0.07 Acc: 50.51
+Train total_instances: 241035 correct_instalces: 121752
+Val total_instances: 116592 correct_instalces: 57722
+Val Loss: 0.07, Acc: 49.51
+----------------------------
+
+graph -> exp2.svg

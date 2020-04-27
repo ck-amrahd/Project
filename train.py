@@ -12,7 +12,7 @@ import numpy as np
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 num_classes = 80
-num_epochs = 10
+num_epochs = 50
 results_folder = 'Results'
 
 train_path = '/home/user/Data/coco2014/train2014'
@@ -173,4 +173,5 @@ plt.plot(x, val_loss_list, label='val_loss')
 plt.xlabel('Epochs')
 plt.ylabel('Loss')
 plt.legend()
+plt.savefig('exp1.svg', format='svg')
 plt.show()

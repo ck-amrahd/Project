@@ -10,7 +10,7 @@ import numpy as np
 from sklearn.metrics import f1_score
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model_path = 'Results/model.pth'
+model_path = 'Results/model_exp2.pth'
 num_classes = 80
 train_path = '/home/user/Data/coco2014/train2014'
 train_ann_file = '/home/user/Data/coco2014/annotations/instances_train2014.json'
